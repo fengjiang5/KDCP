@@ -111,9 +111,8 @@ def main(args):
     model_kd = KD_Part(dim_cylinder_list=[64,256,512,128], dim_polar_list=[128,512,256,64])
     model_kd = model_kd.to(pytorch_device)
     
-    optimizer = optim.Adam([
-                {'params':my_model.parameters()},
-                {'params':model_kd.parameters()}])
+    optimizer = optim.Adam([{'params':my_model.parameters()},
+                            {'params':model_kd.parameters()}])
     
     loss_fun = torch.nn.CrossEntropyLoss(ignore_index=0)
     loss_func_kd = torch.nn.MSELoss(reduce='mean')
@@ -239,7 +238,7 @@ if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-d', '--data_dir', default='/home/qsm/SemanticKITTI/dataset')
-    parser.add_argument('-sp', '--model_save_path', default='result/1005')
+    parser.add_argument('-sp', '--model_save_path', default='result/1006')
     parser.add_argument('-lp', '--model_load_path', default='pretrained_model/919/checkpoint.pt')
     parser.add_argument('-m', '--model', choices=['polar','traditional'], default='polar', help='training model: polar or traditional (default: polar)')
     parser.add_argument('-s', '--grid_size', nargs='+', type=int, default = [480,360,32], help='grid size of BEV representation (default: [480,360,32])')
