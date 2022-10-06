@@ -11,6 +11,9 @@ class Trans_dim(nn.Module):
             nn.BatchNorm2d(dim_in),
             nn.Conv2d(dim_in, dim_out, 3, stride=1, padding=1),
             nn.ReLU(),
+            nn.BatchNorm2d(dim_out),
+            nn.Conv2d(dim_out, dim_out, 3, stride=1, padding=1),
+            nn.ReLU(),
             nn.BatchNorm2d(dim_out)
         )
     def forward(self, cylinder_polar):
