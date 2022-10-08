@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.modules.batchnorm import BatchNorm2d
 import torch_scatter
+import numpy
 
 
 class Trans_dim(nn.Module):
@@ -22,8 +23,10 @@ class Trans_dim(nn.Module):
 
 class Cross_Attn(nn.Module):
     def __init__(self, dim_cylinder, dim_polar):
+        self.dim_cylinder = dim_cylinder
         super(Cross_Attn, self).__init__()
-        self.trans_dim = Trans_dim(dim_in=dim_cylinder, dim_out=dim_polar) 
+        self.q = nn.Linear(dim_polar, dim_cylinder)
+        self.kv = nn.Linear(dim_cylinder, dim_cylinder*2)
         
     def forward(self, cylinder_fea, polar_fea):
         current_device = polar_fea.get_device()
@@ -33,15 +36,24 @@ class Cross_Attn(nn.Module):
         unq, unq_inv, unq_cnt = \
             torch.unique(cylinder_indices[:,:3], return_inverse=True, return_counts=True, dim=0)
         cylinder_features = torch_scatter.scatter_max(cylinder_features,unq_inv, dim=0)[0]
-        cylinder_polar_size = (polar_fea.shape[0], cylinder_features.shape[1],
-                               polar_fea.shape[2],polar_fea.shape[3])
-        cylinder_polar = torch.zeros(size=cylinder_polar_size, dtype=torch.float32).to(current_device)
-        unq = unq.type(torch.int64)
-        cylinder_polar[unq[:, 0], :, unq[:, 1], unq[:, 2]] = cylinder_features
-        cylinder_polar = self.trans_dim(cylinder_polar)
-        # TODO now have same shape of feature shape except of dim of feature
-        assert cylinder_polar.shape == layer_polar.shape
-        return cylinder_polar, layer_polar
+        #   TODO
+        # select the pillar with more voxels
+        select_num = 500 if unq.shape[0] > 500 else unq.shape[0] // 2
+        select_choice = torch.multinomial(unq_cnt.to(torch.float32), select_num)
+        unq_select = unq[select_choice,:].type(torch.int64)
+        cylinder_features = cylinder_features[select_choice]
+        polar_features = polar_fea[unq_select[:,0],:,unq_select[:,1],unq_select[:,2]]
+
+        q = self.q(polar_features)
+        kv = self.kv(cylinder_features)
+        k = kv[:,:self.dim_cylinder]
+        v = kv[:,self.dim_cylinder:]
+        out_put = (q@k.T)@v
+        return cylinder_features, out_put
+
+        # assert cylinder_polar.shape == layer_polar.shape
+        # return cylinder_polar, layer_polar
+        
 
 
 class KD_Part(nn.Module):

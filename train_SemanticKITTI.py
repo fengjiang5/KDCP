@@ -238,7 +238,7 @@ if __name__ == '__main__':
     # Training settings
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('-d', '--data_dir', default='/home/qsm/SemanticKITTI/dataset')
-    parser.add_argument('-sp', '--model_save_path', default='result/1006')
+    parser.add_argument('-sp', '--model_save_path', default='result/transformer')
     parser.add_argument('-lp', '--model_load_path', default='pretrained_model/919/checkpoint.pt')
     parser.add_argument('-m', '--model', choices=['polar','traditional'], default='polar', help='training model: polar or traditional (default: polar)')
     parser.add_argument('-s', '--grid_size', nargs='+', type=int, default = [480,360,32], help='grid size of BEV representation (default: [480,360,32])')

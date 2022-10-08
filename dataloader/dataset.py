@@ -41,6 +41,7 @@ class SemKITTI(data.Dataset):
         raw_data = np.fromfile(self.im_idx[index], dtype=np.float32).reshape((-1, 4))
         if self.imageset == 'test':
             annotated_data = np.expand_dims(np.zeros_like(raw_data[:,0],dtype=int),axis=1)
+            label_path = self.im_idx[index].replace('velodyne','labels')[:-3]+'label'
         else:
             label_path = self.im_idx[index].replace('velodyne','labels')[:-3]+'label'
             annotated_data = np.fromfile(label_path, dtype=np.int32).reshape((-1,1))
@@ -303,7 +304,8 @@ def collate_fn_BEV_test(data):
     point_label = [d[3] for d in data]
     xyz = [d[4] for d in data]
     index = [d[5] for d in data]
-    return torch.from_numpy(data2stack),torch.from_numpy(label2stack),grid_ind_stack,point_label,xyz,index
+    label_path = [d[6] for d in data]
+    return torch.from_numpy(data2stack),torch.from_numpy(label2stack),grid_ind_stack,point_label,xyz,index, label_path
 
 # load Semantic KITTI class info
 with open("semantic-kitti.yaml", 'r') as stream:

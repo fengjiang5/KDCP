@@ -26,19 +26,19 @@ def per_class_iu(hist):
     return np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
 
 def fast_hist_crop(output, target, unique_label):
-    hist = fast_hist(output.flatten(), target.flatten(), np.max(unique_label)+1)
-    hist=hist[unique_label,:]
-    hist=hist[:,unique_label]
+    hist = fast_hist(output.flatten(), target.flatten(), np.max(unique_label)+2)
+    hist=hist[unique_label+1,:]
+    hist=hist[:,unique_label+1]
     return hist
 
-def SemKITTI2train(label):
-    if isinstance(label, list):
-        return [SemKITTI2train_single(a) for a in label]
-    else:
-        return SemKITTI2train_single(label)
+# def SemKITTI2train(label):
+#     if isinstance(label, list):
+#         return [SemKITTI2train_single(a) for a in label]
+#     else:
+#         return SemKITTI2train_single(label)
 
-def SemKITTI2train_single(label):
-    return label - 1 # uint8 trick
+# def SemKITTI2train_single(label):
+#     return label - 1 # uint8 trick
 
 def train2SemKITTI(input_label):
     # delete 0 label (uses uint8 trick : 0 - 1 = 255 )
@@ -65,7 +65,7 @@ def main(args):
     unique_label_str=[SemKITTI_label_name[x] for x in unique_label+1]
 
     # prepare model
-    my_BEV_model=BEV_Unet(n_class=len(unique_label), n_height = compression_model, input_batch_norm = True, dropout = 0.5, circular_padding = circular_padding)
+    my_BEV_model=BEV_Unet(n_class=len(unique_label)+1, n_height = compression_model, input_batch_norm = True, dropout = 0.5, circular_padding = circular_padding)
     my_model = ptBEVnet(my_BEV_model, pt_model = 'pointnet', grid_size =  grid_size, fea_dim = fea_dim, max_pt_per_encode = 256,
                             out_pt_fea_dim = 512, kernal_size = 1, pt_selection = 'random', fea_compre = compression_model)
     if os.path.exists(model_save_path):
@@ -93,42 +93,42 @@ def main(args):
                                                     num_workers = 4)
 
     # validation
-    print('*'*80)
-    print('Test network performance on validation split')
-    print('*'*80)
-    pbar = tqdm(total=len(val_dataset_loader))
-    my_model.eval()
-    hist_list = []
-    time_list = []
-    with torch.no_grad():
-        for i_iter_val,(_,val_vox_label,val_grid,val_pt_labs,val_pt_fea) in enumerate(val_dataset_loader):
-            val_vox_label = SemKITTI2train(val_vox_label)
-            val_pt_labs = SemKITTI2train(val_pt_labs)
-            val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in val_pt_fea]
-            val_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in val_grid]
-            val_label_tensor=val_vox_label.type(torch.LongTensor).to(pytorch_device)
+    # print('*'*80)
+    # print('Test network performance on validation split')
+    # print('*'*80)
+    # pbar = tqdm(total=len(val_dataset_loader))
+    # my_model.eval()
+    # hist_list = []
+    # time_list = []
+    # with torch.no_grad():
+    #     for i_iter_val,(_,val_vox_label,val_grid,val_pt_labs,val_pt_fea,_) in enumerate(val_dataset_loader):
+    #         # val_vox_label = SemKITTI2train(val_vox_label)
+    #         # val_pt_labs = SemKITTI2train(val_pt_labs)
+    #         val_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in val_pt_fea]
+    #         val_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in val_grid]
+    #         val_label_tensor=val_vox_label.type(torch.LongTensor).to(pytorch_device)
 
-            torch.cuda.synchronize()
-            start_time = time.time()
-            predict_labels = my_model(val_pt_fea_ten, val_grid_ten)
-            torch.cuda.synchronize()
-            time_list.append(time.time()-start_time)
+    #         torch.cuda.synchronize()
+    #         start_time = time.time()
+    #         predict_labels = my_model(val_pt_fea_ten, val_grid_ten)
+    #         torch.cuda.synchronize()
+    #         time_list.append(time.time()-start_time)
 
-            predict_labels = torch.argmax(predict_labels,dim=1)
-            predict_labels = predict_labels.cpu().detach().numpy()
-            for count,i_val_grid in enumerate(val_grid):
-                hist_list.append(fast_hist_crop(predict_labels[count,val_grid[count][:,0],val_grid[count][:,1],val_grid[count][:,2]],val_pt_labs[count],unique_label))
-            pbar.update(1)
-    iou = per_class_iu(sum(hist_list))
-    print('Validation per class iou: ')
-    for class_name, class_iou in zip(unique_label_str,iou):
-        print('%s : %.2f%%' % (class_name, class_iou*100))
-    val_miou = np.nanmean(iou) * 100
-    del val_vox_label,val_grid,val_pt_fea,val_grid_ten
-    pbar.close()
-    print('Current val miou is %.3f ' % val_miou)
-    print('Inference time per %d is %.4f seconds\n' %
-        (test_batch_size,np.mean(time_list)))
+    #         predict_labels = torch.argmax(predict_labels,dim=1)
+    #         predict_labels = predict_labels.cpu().detach().numpy()
+    #         for count,i_val_grid in enumerate(val_grid):
+    #             hist_list.append(fast_hist_crop(predict_labels[count,val_grid[count][:,0],val_grid[count][:,1],val_grid[count][:,2]],val_pt_labs[count],unique_label))
+    #         pbar.update(1)
+    # iou = per_class_iu(sum(hist_list))
+    # print('Validation per class iou: ')
+    # for class_name, class_iou in zip(unique_label_str,iou):
+    #     print('%s : %.2f%%' % (class_name, class_iou*100))
+    # val_miou = np.nanmean(iou) * 100
+    # del val_vox_label,val_grid,val_pt_fea,val_grid_ten
+    # pbar.close()
+    # print('Current val miou is %.3f ' % val_miou)
+    # print('Inference time per %d is %.4f seconds\n' %
+    #     (test_batch_size,np.mean(time_list)))
     
     # test
     print('*'*80)
@@ -136,12 +136,12 @@ def main(args):
     print('*'*80)
     pbar = tqdm(total=len(test_dataset_loader))
     with torch.no_grad():
-        for i_iter_test,(_,_,test_grid,_,test_pt_fea,test_index) in enumerate(test_dataset_loader):
+        for i_iter_test,(_,_,test_grid,_,test_pt_fea,test_index,_) in enumerate(test_dataset_loader):
             # predict
             test_pt_fea_ten = [torch.from_numpy(i).type(torch.FloatTensor).to(pytorch_device) for i in test_pt_fea]
             test_grid_ten = [torch.from_numpy(i[:,:2]).to(pytorch_device) for i in test_grid]
 
-            predict_labels = my_model(test_pt_fea_ten,test_grid_ten)
+            predict_labels,_ = my_model(test_pt_fea_ten,test_grid_ten)
             predict_labels = torch.argmax(predict_labels,1).type(torch.uint8)
             predict_labels = predict_labels.cpu().detach().numpy()
             # write to label file
@@ -169,8 +169,8 @@ def main(args):
 if __name__ == '__main__':
     # Testing settings
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-d', '--data_dir', default='data')
-    parser.add_argument('-p', '--model_save_path', default='pretrained_weight/SemKITTI_PolarSeg.pt')
+    parser.add_argument('-d', '--data_dir', default='/home/qsm/SemanticKITTI/dataset')
+    parser.add_argument('-p', '--model_save_path', default='/home/jf/PolarSeg-master/result/1006/checkpoint.pt')
     parser.add_argument('-o', '--test_output_path', default='out/SemKITTI_test')
     parser.add_argument('-m', '--model', choices=['polar','traditional'], default='polar', help='training model: polar or traditional (default: polar)')
     parser.add_argument('-s', '--grid_size', nargs='+', type=int, default = [480,360,32], help='grid size of BEV representation (default: [480,360,32])')
